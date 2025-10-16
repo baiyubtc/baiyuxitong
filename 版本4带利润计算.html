@@ -1,0 +1,2522 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>产品收纳管理系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+    <!-- 配置Tailwind自定义颜色和字体 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#10B981',
+                        accent: '#6366F1',
+                        neutral: '#64748B',
+                        light: '#F1F5F9',
+                        dark: '#1E293B'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .product-card {
+                @apply bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 hover:shadow-lg;
+            }
+            .product-card.selected {
+                @apply ring-2 ring-primary shadow-lg;
+            }
+            .btn-primary {
+                @apply bg-primary text-white px-4 py-2 rounded-md hover:bg-primary/90 transition-all;
+            }
+            .btn-secondary {
+                @apply bg-secondary text-white px-4 py-2 rounded-md hover:bg-secondary/90 transition-all;
+            }
+            .btn-danger {
+                @apply bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 transition-all;
+            }
+            .btn-outline {
+                @apply border border-primary text-primary px-4 py-2 rounded-md hover:bg-primary/10 transition-all;
+            }
+            .input-field {
+                @apply w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary;
+            }
+            .section-title {
+                @apply text-xl font-bold text-dark;
+            }
+            .tab-active {
+                @apply border-b-2 border-primary text-primary font-medium;
+            }
+            .select-checkbox {
+                @apply absolute top-2 left-2 z-10 hidden;
+            }
+            .select-checkbox.visible {
+                @apply block;
+            }
+            .no-match {
+                @apply bg-red-50;
+            }
+            .sort-dropdown {
+                @apply absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-20 border border-gray-200;
+            }
+            .tab-content {
+                @apply hidden;
+            }
+            .tab-content.active {
+                @apply block;
+            }
+            .profit-positive {
+                @apply bg-green-100 text-green-800;
+            }
+            .profit-negative {
+                @apply bg-red-100 text-red-800;
+            }
+            .data-table {
+                @apply w-full border-collapse;
+            }
+            .data-table th {
+                @apply bg-gray-50 border border-gray-300 px-4 py-2 text-left text-sm font-semibold text-gray-700;
+            }
+            .data-table td {
+                @apply border border-gray-300 px-4 py-2 text-sm;
+            }
+            .data-table tr:nth-child(even) {
+                @apply bg-gray-50;
+            }
+            .summary-row {
+                @apply bg-gray-100 font-semibold;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans text-dark">
+    <!-- 顶部导航栏 -->
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-3 flex flex-wrap items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-cubes text-primary text-2xl"></i>
+                <h1 class="text-xl font-bold text-dark">产品收纳管理系统</h1>
+            </div>
+            
+            <div class="flex items-center space-x-3 mt-2 sm:mt-0">
+                <button id="exportAllBtn" class="btn-outline flex items-center text-sm">
+                    <i class="fa fa-download mr-1"></i> 导出所有产品
+                </button>
+                <button id="importProductsBtn" class="btn-outline flex items-center text-sm">
+                    <i class="fa fa-upload mr-1"></i> 导入产品
+                </button>
+                <input type="file" id="productFileInput" accept=".xlsx, .xls" class="hidden">
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-6">
+        <!-- 标签页导航 -->
+        <div class="border-b border-gray-200 mb-6 overflow-x-auto">
+            <ul class="flex flex-nowrap -mb-px" id="tabs">
+                <li class="mr-2">
+                    <button id="productsTab" class="tab-active py-4 px-4 text-sm font-medium text-center border-b-2 -mb-px">
+                        产品管理
+                    </button>
+                </li>
+                <li class="mr-2">
+                    <button id="profitTab" class="py-4 px-4 text-sm font-medium text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 -mb-px">
+                        利润核算
+                    </button>
+                </li>
+                <li class="mr-2">
+                    <button id="promotionTab" class="py-4 px-4 text-sm font-medium text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 -mb-px">
+                        推广核算
+                    </button>
+                </li>
+                <li class="mr-2">
+                    <button id="totalPromotionTab" class="py-4 px-4 text-sm font-medium text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 -mb-px">
+                        推广总核算
+                    </button>
+                </li>
+            </ul>
+        </div>
+
+        <!-- 产品管理标签页内容 -->
+        <div id="productsTabContent" class="tab-content active">
+            <!-- 搜索区域 -->
+            <div class="bg-white p-4 rounded-lg shadow-sm mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="relative">
+                        <input type="text" id="searchInput" placeholder="搜索产品名称、关键词..." 
+                            class="input-field pl-10">
+                        <i class="fa fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    </div>
+                    
+                    <div class="grid grid-cols-3 gap-2">
+                        <select id="searchType" class="input-field">
+                            <option value="all">全部搜索</option>
+                            <option value="name">名称</option>
+                            <option value="spu">SPU</option>
+                            <option value="skc">SKC</option>
+                            <option value="sku">SKU</option>
+                        </select>
+                        <input type="text" id="specificSearchInput" placeholder="输入搜索值..." 
+                            class="input-field">
+                        <button id="specificSearchBtn" class="btn-primary">搜索</button>
+                    </div>
+                    
+                    <div class="flex items-center">
+                        <label class="mr-2 text-sm text-gray-600">图片搜索:</label>
+                        <div class="flex-1 border border-gray-300 rounded-md p-2 flex items-center justify-between">
+                            <span id="imageFileName" class="text-sm text-gray-500">未选择图片</span>
+                            <label class="cursor-pointer bg-gray-100 px-3 py-1 rounded text-sm hover:bg-gray-200 transition-colors">
+                                <i class="fa fa-image mr-1"></i> 选择图片
+                                <input type="file" id="imageSearchInput" accept="image/*" class="hidden">
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 批量操作栏 -->
+            <div id="batchOperations" class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 hidden gap-2">
+                <div class="flex items-center" id="selectAllContainer">
+                    <input type="checkbox" id="selectAll" class="mr-2 h-4 w-4 text-primary rounded hidden" id="selectAllCheckbox">
+                    <label for="selectAll" class="text-sm text-gray-700 hidden" id="selectAllLabel">全选</label>
+                    <span id="selectedCount" class="ml-4 text-sm text-gray-500 hidden" id="selectedCountContainer">已选择 <span class="font-medium">0</span> 个产品</span>
+                </div>
+                <div class="flex flex-col gap-2 w-full sm:w-auto">
+                    <button id="batchDeleteBtn" class="btn-danger flex items-center text-sm opacity-50 cursor-not-allowed justify-center" disabled>
+                        <i class="fa fa-trash mr-1"></i> 批量删除
+                    </button>
+                    <button id="batchClearSalesBtn" class="btn-outline flex items-center text-sm justify-center">
+                        <i class="fa fa-eraser mr-1"></i> 批量清除当月销量
+                    </button>
+                    <div class="relative w-full sm:w-auto">
+                        <button id="sortBtn" class="btn-outline flex items-center text-sm justify-between w-full">
+                            <span><i class="fa fa-sort mr-1"></i> 排序</span>
+                            <i class="fa fa-chevron-down ml-2 text-xs"></i>
+                        </button>
+                        <div id="sortDropdown" class="sort-dropdown hidden">
+                            <button class="sort-option w-full text-left px-4 py-2 text-sm hover:bg-gray-100" data-sort="newest">
+                                最晚更新时间
+                            </button>
+                            <button class="sort-option w-full text-left px-4 py-2 text-sm hover:bg-gray-100" data-sort="oldest">
+                                最早更新时间
+                            </button>
+                            <button class="sort-option w-full text-left px-4 py-2 text-sm hover:bg-gray-100" data-sort="highest">
+                                最高销量
+                            </button>
+                            <button class="sort-option w-full text-left px-4 py-2 text-sm hover:bg-gray-100" data-sort="lowest">
+                                最低销量
+                            </button>
+                            <button class="sort-option w-full text-left px-4 py-2 text-sm hover:bg-gray-100" data-sort="profit-desc">
+                                推广利润降序
+                            </button>
+                            <button class="sort-option w-full text-left px-4 py-2 text-sm hover:bg-gray-100" data-sort="profit-asc">
+                                推广利润升序
+                            </button>
+                            <button class="sort-option w-full text-left px-4 py-2 text-sm hover:bg-gray-100" data-sort="only-negative">
+                                只看推广负利
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 产品列表 -->
+            <div class="mb-6">
+                <!-- 产品列表标题和添加按钮 -->
+                <div class="flex justify-between items-center mb-6">
+                    <div></div> <!-- 左侧占位 -->
+                    <button id="addProductBtn" class="btn-primary flex items-center text-sm px-6 py-2.5 text-base">
+                        <i class="fa fa-plus mr-2"></i> 添加产品
+                    </button>
+                    <div></div> <!-- 右侧占位 -->
+                </div>
+                
+                <div id="productList" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                    <!-- 产品卡片将通过JavaScript动态生成 -->
+                </div>
+                
+                <!-- 空状态提示 -->
+                <div id="emptyState" class="hidden py-16 text-center">
+                    <i class="fa fa-box text-5xl text-gray-300 mb-4"></i>
+                    <p class="text-gray-500">暂无产品数据，请添加产品</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 利润核算页面 -->
+        <div id="profitTabContent" class="tab-content">
+            <div class="bg-white p-6 rounded-lg shadow-sm mb-6">
+                <h2 class="section-title mb-4">利润核算</h2>
+                
+                <div class="mb-6">
+                    <p class="text-gray-600 mb-4">导入销售数据表格，系统将自动匹配产品信息并计算利润</p>
+                    
+                    <div class="flex flex-col md:flex-row gap-4">
+                        <div class="flex-1 border border-gray-300 rounded-md p-4 flex items-center justify-between">
+                            <span id="profitFileName" class="text-sm text-gray-500">未选择文件</span>
+                            <label class="cursor-pointer btn-primary flex items-center px-4 py-2">
+                                <i class="fa fa-upload mr-1"></i> 选择Excel文件
+                                <input type="file" id="profitFileInput" accept=".xlsx, .xls" class="hidden">
+                            </label>
+                        </div>
+                        
+                        <button id="exportProfitBtn" class="btn-outline flex items-center px-4 py-2 opacity-50 cursor-not-allowed" disabled>
+                            <i class="fa fa-download mr-1"></i> 导出结果
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="profitResults" class="hidden">
+                    <div class="overflow-x-auto mb-4">
+                        <table class="data-table">
+                            <thead>
+                                <tr id="profitTableHeader"></tr>
+                            </thead>
+                            <tbody id="profitTableBody"></tbody>
+                            <tfoot id="profitTableFooter"></tfoot>
+                        </table>
+                    </div>
+                </div>
+                
+                <div id="profitEmptyState" class="py-16 text-center">
+                    <i class="fa fa-calculator text-5xl text-gray-300 mb-4"></i>
+                    <p class="text-gray-500">请导入销售数据表格进行利润核算</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 推广核算页面 -->
+        <div id="promotionTabContent" class="tab-content">
+            <div class="bg-white p-6 rounded-lg shadow-sm mb-6">
+                <h2 class="section-title mb-4">推广核算</h2>
+                
+                <div class="mb-6">
+                    <p class="text-gray-600 mb-4">导入推广数据表格，系统将按SPU匹配产品信息并计算推广效果</p>
+                    
+                    <div class="flex flex-col md:flex-row gap-4">
+                        <div class="flex-1 border border-gray-300 rounded-md p-4 flex items-center justify-between">
+                            <span id="promotionFileName" class="text-sm text-gray-500">未选择文件</span>
+                            <label class="cursor-pointer btn-primary flex items-center px-4 py-2">
+                                <i class="fa fa-upload mr-1"></i> 选择Excel文件
+                                <input type="file" id="promotionFileInput" accept=".xlsx, .xls" class="hidden">
+                            </label>
+                        </div>
+                        
+                        <button id="exportPromotionBtn" class="btn-outline flex items-center px-4 py-2 opacity-50 cursor-not-allowed" disabled>
+                            <i class="fa fa-download mr-1"></i> 导出结果
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="promotionResults" class="hidden">
+                    <div class="overflow-x-auto mb-4">
+                        <table class="data-table">
+                            <thead>
+                                <tr id="promotionTableHeader"></tr>
+                            </thead>
+                            <tbody id="promotionTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div id="promotionEmptyState" class="py-16 text-center">
+                    <i class="fa fa-line-chart text-5xl text-gray-300 mb-4"></i>
+                    <p class="text-gray-500">请导入推广数据表格进行推广核算</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 推广总核算页面 -->
+        <div id="totalPromotionTabContent" class="tab-content">
+            <div class="bg-white p-6 rounded-lg shadow-sm mb-6">
+                <h2 class="section-title mb-4">推广总核算</h2>
+                
+                <div class="mb-6">
+                    <p class="text-gray-600 mb-4">最多可导入100个推广数据表格，系统将合并数据并计算总览</p>
+                    
+                    <div class="mb-4">
+                        <div class="flex flex-col md:flex-row gap-4">
+                            <div class="flex-1 border border-gray-300 rounded-md p-4 flex items-center justify-between">
+                                <span id="totalPromotionFileCount" class="text-sm text-gray-500">已选择 0 个文件</span>
+                                <label class="cursor-pointer btn-primary flex items-center px-4 py-2">
+                                    <i class="fa fa-upload mr-1"></i> 选择Excel文件
+                                    <input type="file" id="totalPromotionFileInput" accept=".xlsx, .xls" multiple class="hidden">
+                                </label>
+                            </div>
+                            
+                            <button id="clearTotalPromotionFilesBtn" class="btn-outline flex items-center px-4 py-2 opacity-50 cursor-not-allowed" disabled>
+                                <i class="fa fa-trash mr-1"></i> 清除选择
+                            </button>
+                        </div>
+                        
+                        <div id="selectedFilesList" class="mt-3 hidden">
+                            <p class="text-sm font-medium text-gray-700 mb-2">已选择的文件：</p>
+                            <ul id="totalPromotionFilesList" class="text-sm text-gray-600 max-h-32 overflow-y-auto"></ul>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-end">
+                        <button id="processTotalPromotionBtn" class="btn-primary flex items-center px-4 py-2 opacity-50 cursor-not-allowed" disabled>
+                            <i class="fa fa-cog mr-1"></i> 处理并计算
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="totalPromotionResults" class="hidden">
+                    <div class="overflow-x-auto mb-4">
+                        <table class="data-table">
+                            <thead>
+                                <tr id="totalPromotionTableHeader"></tr>
+                            </thead>
+                            <tbody id="totalPromotionTableBody"></tbody>
+                            <tfoot id="totalPromotionTableFooter"></tfoot>
+                        </table>
+                    </div>
+                    
+                    <div class="flex justify-end">
+                        <button id="exportTotalPromotionBtn" class="btn-outline flex items-center px-4 py-2">
+                            <i class="fa fa-download mr-1"></i> 导出总核算结果
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="totalPromotionEmptyState" class="py-16 text-center">
+                    <i class="fa fa-pie-chart text-5xl text-gray-300 mb-4"></i>
+                    <p class="text-gray-500">请选择推广数据表格进行总核算</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 添加/编辑产品模态框 -->
+    <div id="productModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div class="p-5 border-b border-gray-200 flex justify-between items-center">
+                <h3 id="modalTitle" class="text-lg font-bold">添加产品</h3>
+                <button id="closeModalBtn" class="text-gray-500 hover:text-gray-700">
+                    <i class="fa fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="p-5">
+                <form id="productForm">
+                    <input type="hidden" id="productId">
+                    
+                    <!-- 产品图片上传模块放到最上面 -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">产品图片</label>
+                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                            <img id="productImagePreview" src="" alt="产品图片预览" class="max-h-40 mx-auto mb-3 hidden object-contain">
+                            <p class="mb-3 text-gray-600">上传产品图片</p>
+                            <label class="btn-outline cursor-pointer inline-flex items-center">
+                                <i class="fa fa-image mr-1"></i> 选择图片
+                                <input type="file" id="productImageInput" accept="image/*" class="hidden">
+                            </label>
+                            <input type="hidden" id="productImageData">
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1" for="spu">SPU</label>
+                            <input type="text" id="spu" class="input-field" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1" for="skc">SKC</label>
+                            <input type="text" id="skc" class="input-field" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1" for="sku">SKU</label>
+                            <input type="text" id="sku" class="input-field" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1" for="purchasePrice">进货价格 (元)</label>
+                            <input type="number" id="purchasePrice" step="0.01" min="0" class="input-field" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1" for="declaredPrice">SKU申报价 (元)</label>
+                            <input type="number" id="declaredPrice" step="0.01" min="0" class="input-field" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1" for="adBidRatio">广告出价比例</label>
+                            <input type="number" id="adBidRatio" step="0.01" min="0.01" value="100" class="input-field" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1" for="name">产品名称</label>
+                        <input type="text" id="name" class="input-field" required>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1" for="url">购买链接</label>
+                        <input type="url" id="url" class="input-field">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">广告扣费 (自动计算)</label>
+                        <div class="bg-gray-50 p-3 rounded-md border border-gray-300">
+                            <span id="adCostDisplay" class="text-gray-800">¥0.00</span>
+                            <input type="hidden" id="adCost">
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">计算公式：申报价 ÷ 广告出价比例</p>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">推广后余下利润 (自动计算)</label>
+                        <div class="bg-gray-50 p-3 rounded-md border border-gray-300">
+                            <span id="promotionProfitDisplay" class="text-gray-800">¥0.00</span>
+                            <input type="hidden" id="promotionProfit">
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">计算公式：申报价 - (申报价 ÷ 广告出价比例) - 成本价</p>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="p-5 border-t border-gray-200 flex justify-end space-x-3">
+                <button id="cancelBtn" class="btn-outline">取消</button>
+                <button id="saveProductBtn" class="btn-primary">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // IndexedDB 工具函数 - 放在代码最顶部
+        const DB_NAME = 'ProductSystemDB'; // 数据库名
+        const DB_VERSION = 5; // 版本号升级为5
+        const STORE_NAME = 'products'; // 存储表名
+
+        // 打开数据库并返回操作对象
+        function openDB() {
+            return new Promise((resolve, reject) => {
+                // 打开数据库（不存在则创建）
+                const request = window.indexedDB.open(DB_NAME, DB_VERSION);
+
+                // 数据库版本升级时触发（首次创建或版本号递增）
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    // 如果表不存在，则创建（以id为唯一键）
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+                    }
+                    
+                    // 版本4升级到5的处理逻辑
+                    if (event.oldVersion < 5) {
+                        // 这里可以添加版本5的数据库结构变更
+                        // 目前没有结构变化，所以不需要额外操作
+                        console.log('IndexedDB 已升级到版本5');
+                    }
+                };
+
+                // 打开成功
+                request.onsuccess = (event) => {
+                    resolve(event.target.result);
+                };
+
+                // 打开失败
+                request.onerror = (event) => {
+                    console.error('打开IndexedDB失败：', event.target.error);
+                    reject(event.target.error);
+                };
+            });
+        }
+
+        // 保存产品数据（新增或更新）
+        async function saveProductToDB(product) {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                // 创建事务（readwrite表示可读写）
+                const transaction = db.transaction([STORE_NAME], 'readwrite');
+                const store = transaction.objectStore(STORE_NAME);
+                
+                // 保存数据（存在则更新，不存在则新增）
+                const request = store.put(product);
+
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        // 从数据库获取所有产品
+        async function getAllProductsFromDB() {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_NAME], 'readonly');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.getAll(); // 获取所有数据
+
+                request.onsuccess = () => resolve(request.result || []);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        // 从数据库删除指定产品
+        async function deleteProductFromDB(productId) {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_NAME], 'readwrite');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.delete(productId); // 根据id删除
+
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        // 清空所有产品数据
+        async function clearAllProductsFromDB() {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_NAME], 'readwrite');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.clear(); // 清空表
+
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        // 全局变量
+        let products = [];
+        let currentProductId = null;
+        let selectedProductIds = new Set(); // 用于存储选中的产品ID
+        let isBatchMode = false; // 标记是否处于批量删除模式
+        let currentSortType = null; // 当前排序类型
+        let profitData = null; // 利润核算数据
+        let promotionData = null; // 推广核算数据
+        let totalPromotionFiles = []; // 推广总核算文件列表
+        let totalPromotionData = null; // 推广总核算数据
+        
+        // DOM元素
+        const productList = document.getElementById('productList');
+        const emptyState = document.getElementById('emptyState');
+        const searchInput = document.getElementById('searchInput');
+        const specificSearchInput = document.getElementById('specificSearchInput');
+        const specificSearchBtn = document.getElementById('specificSearchBtn');
+        const searchType = document.getElementById('searchType');
+        const imageSearchInput = document.getElementById('imageSearchInput');
+        const imageFileName = document.getElementById('imageFileName');
+        const addProductBtn = document.getElementById('addProductBtn');
+        const productModal = document.getElementById('productModal');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
+        const saveProductBtn = document.getElementById('saveProductBtn');
+        const modalTitle = document.getElementById('modalTitle');
+        const productForm = document.getElementById('productForm');
+        const productImageInput = document.getElementById('productImageInput');
+        const productImagePreview = document.getElementById('productImagePreview');
+        const productImageData = document.getElementById('productImageData');
+        const exportAllBtn = document.getElementById('exportAllBtn');
+        const importProductsBtn = document.getElementById('importProductsBtn');
+        const productFileInput = document.getElementById('productFileInput');
+        const productsTab = document.getElementById('productsTab');
+        const productsTabContent = document.getElementById('productsTabContent');
+        const skuInput = document.getElementById('sku');
+        const batchOperations = document.getElementById('batchOperations');
+        const selectAllCheckbox = document.getElementById('selectAll');
+        const selectAllLabel = document.getElementById('selectAllLabel');
+        const selectedCountContainer = document.getElementById('selectedCountContainer');
+        const selectedCountElement = document.getElementById('selectedCount').querySelector('span');
+        const batchDeleteBtn = document.getElementById('batchDeleteBtn');
+        const batchClearSalesBtn = document.getElementById('batchClearSalesBtn');
+        const sortBtn = document.getElementById('sortBtn');
+        const sortDropdown = document.getElementById('sortDropdown');
+        
+        // 产品表单字段
+        const declaredPriceInput = document.getElementById('declaredPrice');
+        const adBidRatioInput = document.getElementById('adBidRatio');
+        const adCostDisplay = document.getElementById('adCostDisplay');
+        const adCostInput = document.getElementById('adCost');
+        const purchasePriceInput = document.getElementById('purchasePrice');
+        const promotionProfitDisplay = document.getElementById('promotionProfitDisplay');
+        const promotionProfitInput = document.getElementById('promotionProfit');
+        
+        // 利润核算页面元素
+        const profitTab = document.getElementById('profitTab');
+        const profitTabContent = document.getElementById('profitTabContent');
+        const profitFileInput = document.getElementById('profitFileInput');
+        const profitFileName = document.getElementById('profitFileName');
+        const profitResults = document.getElementById('profitResults');
+        const profitEmptyState = document.getElementById('profitEmptyState');
+        const profitTableHeader = document.getElementById('profitTableHeader');
+        const profitTableBody = document.getElementById('profitTableBody');
+        const profitTableFooter = document.getElementById('profitTableFooter');
+        const exportProfitBtn = document.getElementById('exportProfitBtn');
+        
+        // 推广核算页面元素
+        const promotionTab = document.getElementById('promotionTab');
+        const promotionTabContent = document.getElementById('promotionTabContent');
+        const promotionFileInput = document.getElementById('promotionFileInput');
+        const promotionFileName = document.getElementById('promotionFileName');
+        const promotionResults = document.getElementById('promotionResults');
+        const promotionEmptyState = document.getElementById('promotionEmptyState');
+        const promotionTableHeader = document.getElementById('promotionTableHeader');
+        const promotionTableBody = document.getElementById('promotionTableBody');
+        const exportPromotionBtn = document.getElementById('exportPromotionBtn');
+        
+        // 推广总核算页面元素
+        const totalPromotionTab = document.getElementById('totalPromotionTab');
+        const totalPromotionTabContent = document.getElementById('totalPromotionTabContent');
+        const totalPromotionFileInput = document.getElementById('totalPromotionFileInput');
+        const totalPromotionFileCount = document.getElementById('totalPromotionFileCount');
+        const selectedFilesList = document.getElementById('selectedFilesList');
+        const totalPromotionFilesList = document.getElementById('totalPromotionFilesList');
+        const clearTotalPromotionFilesBtn = document.getElementById('clearTotalPromotionFilesBtn');
+        const processTotalPromotionBtn = document.getElementById('processTotalPromotionBtn');
+        const totalPromotionResults = document.getElementById('totalPromotionResults');
+        const totalPromotionEmptyState = document.getElementById('totalPromotionEmptyState');
+        const totalPromotionTableHeader = document.getElementById('totalPromotionTableHeader');
+        const totalPromotionTableBody = document.getElementById('totalPromotionTableBody');
+        const totalPromotionTableFooter = document.getElementById('totalPromotionTableFooter');
+        const exportTotalPromotionBtn = document.getElementById('exportTotalPromotionBtn');
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', async () => {
+            await initProductData();
+            renderProducts();
+            setupEventListeners();
+            updateBatchOperations();
+        });
+        
+        // 初始化产品数据
+        async function initProductData() {
+            try {
+                // 从IndexedDB加载数据
+                products = await getAllProductsFromDB();
+                
+                const today = new Date();
+                const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+                
+                // 为旧数据补充字段
+                products = products.map(product => {
+                    // 计算广告扣费：申报价 ÷ 广告出价比例（不再使用百分比）
+                    const adCost = product.declaredPrice && product.adBidRatio 
+                        ? (parseFloat(product.declaredPrice) / parseFloat(product.adBidRatio)).toFixed(2)
+                        : 0;
+                        
+                    // 计算推广利润：申报价 - (申报价 ÷ 广告出价比例) - 成本价
+                    const promotionProfit = product.declaredPrice && product.adBidRatio && product.purchasePrice
+                        ? (parseFloat(product.declaredPrice) - parseFloat(adCost) - parseFloat(product.purchasePrice)).toFixed(2)
+                        : 0;
+                        
+                    return {
+                        declaredPrice: product.declaredPrice || 0,
+                        adBidRatio: product.adBidRatio || 100,
+                        adCost: product.adCost || adCost,
+                        promotionProfit: product.promotionProfit || promotionProfit,
+                        monthlySales: product.monthlySales || 0,
+                        salesMonth: product.salesMonth || currentMonth,
+                        updatedAt: product.updatedAt || product.createdAt || new Date().toISOString(),
+                        ...product
+                    };
+                });
+                
+                // 保存更新后的数据到IndexedDB
+                for (const product of products) {
+                    await saveProductToDB(product);
+                }
+            } catch (error) {
+                console.error('初始化产品数据失败：', error);
+                products = []; // 失败时使用空数组
+            }
+        }
+        
+        // 设置事件监听器
+        function setupEventListeners() {
+            // 标签页切换
+            productsTab.addEventListener('click', () => switchTab('products'));
+            profitTab.addEventListener('click', () => switchTab('profit'));
+            promotionTab.addEventListener('click', () => switchTab('promotion'));
+            totalPromotionTab.addEventListener('click', () => switchTab('totalPromotion'));
+            
+            // 搜索事件
+            searchInput.addEventListener('input', handleSearch);
+            specificSearchBtn.addEventListener('click', handleSpecificSearch);
+            
+            // 图片搜索
+            imageSearchInput.addEventListener('change', handleImageSearchSelection);
+            
+            // 产品操作
+            addProductBtn.addEventListener('click', openAddProductModal);
+            closeModalBtn.addEventListener('click', closeModal);
+            cancelBtn.addEventListener('click', closeModal);
+            saveProductBtn.addEventListener('click', saveProduct);
+            productImageInput.addEventListener('change', handleImageUpload);
+            
+            // 申报价、广告出价比例和成本价变化时重新计算广告扣费和推广利润
+            declaredPriceInput.addEventListener('input', calculateAdAndProfit);
+            adBidRatioInput.addEventListener('input', calculateAdAndProfit);
+            purchasePriceInput.addEventListener('input', calculateAdAndProfit);
+            
+            // 支持回车键保存产品
+            productForm.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    saveProduct();
+                }
+            });
+            
+            // 导入导出
+            exportAllBtn.addEventListener('click', exportAllProducts);
+            importProductsBtn.addEventListener('click', () => productFileInput.click());
+            productFileInput.addEventListener('change', importProducts);
+            
+            // 批量操作事件
+            selectAllCheckbox.addEventListener('change', handleSelectAll);
+            batchDeleteBtn.addEventListener('click', toggleBatchMode);
+            batchClearSalesBtn.addEventListener('click', clearAllMonthlySales);
+            
+            // 排序功能事件
+            sortBtn.addEventListener('click', toggleSortDropdown);
+            
+            // 点击排序选项
+            document.querySelectorAll('.sort-option').forEach(option => {
+                option.addEventListener('click', function() {
+                    const sortType = this.getAttribute('data-sort');
+                    sortProducts(sortType);
+                    toggleSortDropdown(); // 关闭下拉菜单
+                });
+            });
+            
+            // 点击页面其他地方关闭排序下拉菜单
+            document.addEventListener('click', function(event) {
+                if (!sortBtn.contains(event.target) && !sortDropdown.contains(event.target)) {
+                    sortDropdown.classList.add('hidden');
+                }
+            });
+            
+            // 利润核算页面事件
+            profitFileInput.addEventListener('change', handleProfitFileUpload);
+            exportProfitBtn.addEventListener('click', exportProfitData);
+            
+            // 推广核算页面事件
+            promotionFileInput.addEventListener('change', handlePromotionFileUpload);
+            exportPromotionBtn.addEventListener('click', exportPromotionData);
+            
+            // 推广总核算页面事件
+            totalPromotionFileInput.addEventListener('change', handleTotalPromotionFilesSelect);
+            clearTotalPromotionFilesBtn.addEventListener('click', clearTotalPromotionFiles);
+            processTotalPromotionBtn.addEventListener('click', processTotalPromotionFiles);
+            exportTotalPromotionBtn.addEventListener('click', exportTotalPromotionData);
+        }
+        
+        // 切换标签页
+        function switchTab(tabName) {
+            // 隐藏所有标签内容
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // 移除所有标签的激活状态
+            document.querySelectorAll('#tabs button').forEach(tab => {
+                tab.classList.remove('tab-active');
+                tab.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+            });
+            
+            // 激活选中的标签
+            document.getElementById(`${tabName}Tab`).classList.add('tab-active');
+            document.getElementById(`${tabName}Tab`).classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+            
+            // 显示选中标签的内容
+            document.getElementById(`${tabName}TabContent`).classList.add('active');
+        }
+        
+        // 计算广告扣费和推广利润
+        function calculateAdAndProfit() {
+            const declaredPrice = parseFloat(declaredPriceInput.value) || 0;
+            const adBidRatio = parseFloat(adBidRatioInput.value) || 0;
+            const purchasePrice = parseFloat(purchasePriceInput.value) || 0;
+            
+            if (adBidRatio <= 0) {
+                adCostDisplay.textContent = '请输入有效的广告出价比例';
+                adCostInput.value = '';
+                promotionProfitDisplay.textContent = '请输入有效的广告出价比例';
+                promotionProfitInput.value = '';
+                return;
+            }
+            
+            // 计算广告扣费：申报价 ÷ 广告出价比例（不再使用百分比）
+            const adCost = (declaredPrice / adBidRatio).toFixed(2);
+            adCostDisplay.textContent = `¥${adCost}`;
+            adCostInput.value = adCost;
+            
+            // 计算推广利润：申报价 - 广告扣费 - 成本价
+            const promotionProfit = (declaredPrice - parseFloat(adCost) - purchasePrice).toFixed(2);
+            promotionProfitDisplay.textContent = `¥${promotionProfit}`;
+            promotionProfitInput.value = promotionProfit;
+        }
+        
+        // 切换批量删除模式
+        async function toggleBatchMode() {
+            if (products.length === 0) return;
+            
+            isBatchMode = !isBatchMode;
+            
+            if (isBatchMode) {
+                // 进入批量删除模式
+                batchDeleteBtn.innerHTML = '<i class="fa fa-check mr-1"></i> 确认删除';
+                batchDeleteBtn.classList.remove('bg-red-500', 'hover:bg-red-600');
+                batchDeleteBtn.classList.add('bg-green-500', 'hover:bg-green-600');
+                
+                // 显示选择框和相关元素
+                showBatchElements();
+            } else {
+                // 退出批量删除模式
+                batchDeleteBtn.innerHTML = '<i class="fa fa-trash mr-1"></i> 批量删除';
+                batchDeleteBtn.classList.remove('bg-green-500', 'hover:bg-green-600');
+                batchDeleteBtn.classList.add('bg-red-500', 'hover:bg-red-600');
+                
+                // 如果有选中的产品，执行删除
+                if (selectedProductIds.size > 0) {
+                    if (confirm(`确定要删除选中的 ${selectedProductIds.size} 个产品吗？`)) {
+                        products = products.filter(product => !selectedProductIds.has(product.id));
+                        // 从IndexedDB中删除
+                        for (const id of selectedProductIds) {
+                            await deleteProductFromDB(id);
+                        }
+                        selectedProductIds.clear();
+                    }
+                }
+                
+                // 隐藏选择框和相关元素
+                hideBatchElements();
+            }
+            
+            updateBatchOperations();
+            renderProducts();
+        }
+        
+        // 批量清除当月销量数据
+        async function clearAllMonthlySales() {
+            if (products.length === 0) {
+                alert('没有产品数据可操作');
+                return;
+            }
+            
+            if (confirm('确定要清除所有产品的当月销量数据吗？')) {
+                const today = new Date();
+                const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+                
+                // 重置所有产品的当月销量
+                products.forEach(product => {
+                    product.monthlySales = 0;
+                    product.salesMonth = currentMonth;
+                    product.updatedAt = new Date().toISOString();
+                });
+                
+                // 保存更新到数据库
+                await saveProducts(products);
+                
+                renderProducts();
+                alert('已清除所有产品的当月销量数据');
+            }
+        }
+        
+        // 切换排序下拉菜单显示/隐藏
+        function toggleSortDropdown() {
+            sortDropdown.classList.toggle('hidden');
+        }
+        
+        // 排序产品
+        function sortProducts(sortType) {
+            currentSortType = sortType;
+            let sortedProducts = [...products];
+            
+            switch (sortType) {
+                case 'newest':
+                    // 按最晚更新时间排序
+                    sortedProducts.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+                    break;
+                case 'oldest':
+                    // 按最早更新时间排序
+                    sortedProducts.sort((a, b) => new Date(a.updatedAt) - new Date(b.updatedAt));
+                    break;
+                case 'highest':
+                    // 按最高销量排序
+                    sortedProducts.sort((a, b) => (b.monthlySales || 0) - (a.monthlySales || 0));
+                    break;
+                case 'lowest':
+                    // 按最低销量排序
+                    sortedProducts.sort((a, b) => (a.monthlySales || 0) - (b.monthlySales || 0));
+                    break;
+                case 'profit-desc':
+                    // 推广利润降序
+                    sortedProducts.sort((a, b) => parseFloat(b.promotionProfit) - parseFloat(a.promotionProfit));
+                    break;
+                case 'profit-asc':
+                    // 推广利润升序
+                    sortedProducts.sort((a, b) => parseFloat(a.promotionProfit) - parseFloat(b.promotionProfit));
+                    break;
+                case 'only-negative':
+                    // 只看推广负利
+                    sortedProducts = sortedProducts.filter(p => parseFloat(p.promotionProfit) < 0);
+                    break;
+            }
+            
+            renderProducts(sortedProducts);
+        }
+        
+        // 显示批量操作元素
+        function showBatchElements() {
+            selectAllCheckbox.classList.remove('hidden');
+            selectAllLabel.classList.remove('hidden');
+            selectedCountContainer.classList.remove('hidden');
+            
+            // 显示所有产品的选择框
+            document.querySelectorAll('.select-checkbox').forEach(checkbox => {
+                checkbox.classList.add('visible');
+            });
+        }
+        
+        // 隐藏批量操作元素
+        function hideBatchElements() {
+            selectAllCheckbox.classList.add('hidden');
+            selectAllLabel.classList.add('hidden');
+            selectedCountContainer.classList.add('hidden');
+            
+            // 隐藏所有产品的选择框
+            document.querySelectorAll('.select-checkbox').forEach(checkbox => {
+                checkbox.classList.remove('visible');
+            });
+        }
+        
+        // 渲染产品列表
+        function renderProducts(filteredProducts = null) {
+            const itemsToRender = filteredProducts || products;
+            
+            if (itemsToRender.length === 0) {
+                productList.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                batchOperations.classList.add('hidden');
+                return;
+            }
+            
+            emptyState.classList.add('hidden');
+            batchOperations.classList.remove('hidden');
+            productList.innerHTML = '';
+            
+            itemsToRender.forEach(product => {
+                const isSelected = selectedProductIds.has(product.id);
+                const promotionProfit = parseFloat(product.promotionProfit);
+                const profitClass = promotionProfit >= 0 ? 'profit-positive' : 'profit-negative';
+                
+                const productCard = document.createElement('div');
+                productCard.className = `product-card ${isSelected ? 'selected' : ''}`;
+                productCard.innerHTML = `
+                    <div class="relative bg-gray-100 aspect-square overflow-hidden">
+                        <div class="select-checkbox ${isBatchMode ? 'visible' : ''}">
+                            <input type="checkbox" class="h-4 w-4 text-primary rounded" 
+                                   data-id="${product.id}" ${isSelected ? 'checked' : ''}>
+                        </div>
+                        ${product.image ? `<img src="${product.image}" alt="${product.name}" class="w-full h-full object-contain">` : 
+                          `<div class="w-full h-full flex items-center justify-center text-gray-400"><i class="fa fa-image text-3xl"></i></div>`}
+                        <div class="absolute bottom-2 right-2 bg-primary/90 text-white text-xs px-1.5 py-0.5 rounded-full">
+                            销量: ${product.monthlySales || 0}
+                        </div>
+                        <div class="absolute top-2 right-2 flex space-x-1">
+                            <button class="copy-product-btn bg-white/80 hover:bg-white p-1.5 rounded-full shadow-sm text-gray-700" 
+                                data-id="${product.id}" title="复制产品">
+                                <i class="fa fa-copy text-sm"></i>
+                            </button>
+                            <button class="edit-product-btn bg-white/80 hover:bg-white p-1.5 rounded-full shadow-sm text-gray-700" 
+                                data-id="${product.id}" title="编辑产品">
+                                <i class="fa fa-pencil text-sm"></i>
+                            </button>
+                            <button class="delete-product-btn bg-white/80 hover:bg-white p-1.5 rounded-full shadow-sm text-gray-700" 
+                                data-id="${product.id}" title="删除产品">
+                                <i class="fa fa-trash text-sm"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-3">
+                        <div class="text-xs text-gray-500 mb-1">
+                            <span class="bg-gray-100 px-1.5 py-0.5 rounded">SPU: ${product.spu}</span>
+                            <span class="bg-gray-100 px-1.5 py-0.5 rounded">SKU: ${product.sku}</span>
+                        </div>
+                        <h3 class="font-medium text-gray-900 truncate mb-1">${product.name}</h3>
+                        <div class="flex justify-between items-center mb-1">
+                            <p class="text-primary font-medium">¥${parseFloat(product.purchasePrice).toFixed(2)}</p>
+                            <p class="text-gray-600 text-sm">申报价: ¥${parseFloat(product.declaredPrice).toFixed(2)}</p>
+                        </div>
+                        <p class="text-red-500 text-xs mb-1">广告扣费: ¥${parseFloat(product.adCost).toFixed(2)}</p>
+                        <div class="text-xs font-medium px-2 py-0.5 rounded ${profitClass}">
+                            推广利润: ¥${parseFloat(product.promotionProfit).toFixed(2)}
+                        </div>
+                    </div>
+                `;
+                
+                productList.appendChild(productCard);
+                
+                // 添加事件监听器
+                const deleteBtn = productCard.querySelector('.delete-product-btn');
+                deleteBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    deleteProduct(product.id);
+                });
+                
+                const editBtn = productCard.querySelector('.edit-product-btn');
+                editBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    editProduct(product.id);
+                });
+                
+                const copyBtn = productCard.querySelector('.copy-product-btn');
+                copyBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    copyProduct(product.id);
+                });
+                
+                // 产品选择复选框事件
+                if (isBatchMode) {
+                    const selectCheckbox = productCard.querySelector('.select-checkbox input');
+                    selectCheckbox.addEventListener('change', function(e) {
+                        e.stopPropagation();
+                        handleProductSelect(product.id, this.checked);
+                    });
+                }
+            });
+            
+            updateBatchOperations();
+        }
+        
+        // 处理产品选择
+        function handleProductSelect(productId, isSelected) {
+            if (isSelected) {
+                selectedProductIds.add(productId);
+            } else {
+                selectedProductIds.delete(productId);
+            }
+            
+            // 取消全选状态
+            selectAllCheckbox.checked = false;
+            
+            updateBatchOperations();
+        }
+        
+        // 处理全选
+        function handleSelectAll() {
+            const isChecked = this.checked;
+            
+            if (isChecked) {
+                // 全选所有产品
+                products.forEach(product => {
+                    selectedProductIds.add(product.id);
+                });
+            } else {
+                // 取消全选
+                selectedProductIds.clear();
+            }
+            
+            renderProducts(); // 重新渲染以更新选择状态
+        }
+        
+        // 更新批量操作栏状态
+        function updateBatchOperations() {
+            const selectedCount = selectedProductIds.size;
+            
+            // 更新选中数量显示
+            selectedCountElement.textContent = selectedCount;
+            
+            // 更新批量删除按钮状态
+            if (products.length > 0) {
+                batchDeleteBtn.disabled = false;
+                batchDeleteBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            } else {
+                batchDeleteBtn.disabled = true;
+                batchDeleteBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        }
+        
+        // 打开添加产品模态框
+        function openAddProductModal() {
+            modalTitle.textContent = '添加产品';
+            productForm.reset();
+            productImagePreview.src = '';
+            productImagePreview.classList.add('hidden');
+            productImageData.value = '';
+            currentProductId = null;
+            adCostDisplay.textContent = '¥0.00';
+            adCostInput.value = '0.00';
+            promotionProfitDisplay.textContent = '¥0.00';
+            promotionProfitInput.value = '0.00';
+            productModal.classList.remove('hidden');
+        }
+        
+        // 编辑产品
+        function editProduct(id, focusSku = false) {
+            const product = products.find(p => p.id === id);
+            if (!product) return;
+            
+            currentProductId = id;
+            modalTitle.textContent = '编辑产品';
+            
+            // 填充表单数据
+            document.getElementById('productId').value = product.id;
+            document.getElementById('spu').value = product.spu;
+            document.getElementById('skc').value = product.skc;
+            document.getElementById('sku').value = product.sku;
+            document.getElementById('name').value = product.name;
+            document.getElementById('purchasePrice').value = product.purchasePrice;
+            document.getElementById('declaredPrice').value = product.declaredPrice;
+            document.getElementById('adBidRatio').value = product.adBidRatio;
+            document.getElementById('url').value = product.url || '';
+            productImageData.value = product.image || '';
+            adCostInput.value = product.adCost || '0.00';
+            adCostDisplay.textContent = `¥${parseFloat(product.adCost || 0).toFixed(2)}`;
+            promotionProfitInput.value = product.promotionProfit || '0.00';
+            promotionProfitDisplay.textContent = `¥${parseFloat(product.promotionProfit || 0).toFixed(2)}`;
+            
+            // 显示图片预览
+            if (product.image) {
+                productImagePreview.src = product.image;
+                productImagePreview.classList.remove('hidden');
+            } else {
+                productImagePreview.src = '';
+                productImagePreview.classList.add('hidden');
+            }
+            
+            productModal.classList.remove('hidden');
+            
+            // 如果需要，聚焦到SKU输入框
+            if (focusSku) {
+                setTimeout(() => {
+                    const skuInput = document.getElementById('sku');
+                    skuInput.focus();
+                    // 选中输入框中的文本以便快速修改
+                    skuInput.select();
+                }, 100);
+            }
+        }
+        
+        // 保存产品
+        async function saveProduct() {
+            const spu = document.getElementById('spu').value.trim();
+            const skc = document.getElementById('skc').value.trim();
+            const sku = document.getElementById('sku').value.trim();
+            const name = document.getElementById('name').value.trim();
+            const purchasePrice = document.getElementById('purchasePrice').value.trim();
+            const declaredPrice = document.getElementById('declaredPrice').value.trim();
+            const adBidRatio = document.getElementById('adBidRatio').value.trim();
+            const adCost = adCostInput.value;
+            const promotionProfit = promotionProfitInput.value;
+            const url = document.getElementById('url').value.trim();
+            const image = productImageData.value;
+            
+            // 简单验证
+            if (!spu || !skc || !sku || !name || !purchasePrice || !declaredPrice || !adBidRatio) {
+                alert('请填写必填字段');
+                return;
+            }
+            
+            if (parseFloat(adBidRatio) <= 0) {
+                alert('广告出价比例必须大于0');
+                return;
+            }
+            
+            const today = new Date();
+            const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+            
+            if (currentProductId) {
+                // 更新现有产品
+                const index = products.findIndex(p => p.id === currentProductId);
+                if (index !== -1) {
+                    products[index] = {
+                        ...products[index],
+                        spu,
+                        skc,
+                        sku,
+                        name,
+                        purchasePrice,
+                        declaredPrice,
+                        adBidRatio,
+                        adCost,
+                        promotionProfit,
+                        url,
+                        image: image || products[index].image,
+                        updatedAt: new Date().toISOString()
+                    };
+                    await saveProductToDB(products[index]); // 保存到IndexedDB
+                }
+            } else {
+                // 添加新产品
+                const newProduct = {
+                    id: Date.now().toString(),
+                    spu,
+                    skc,
+                    sku,
+                    name,
+                    purchasePrice,
+                    declaredPrice,
+                    adBidRatio,
+                    adCost,
+                    promotionProfit,
+                    url,
+                    image,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    monthlySales: 0,
+                    salesMonth: currentMonth
+                };
+                
+                products.push(newProduct);
+                await saveProductToDB(newProduct); // 保存到IndexedDB
+            }
+            
+            // 重新渲染
+            if (currentSortType) {
+                sortProducts(currentSortType); // 保持当前排序
+            } else {
+                renderProducts();
+            }
+            closeModal();
+        }
+        
+        // 复制产品（同SPU SKC不同SKU）
+        async function copyProduct(id) {
+            const product = products.find(p => p.id === id);
+            if (!product) return;
+            
+            // 创建新的SKU（在原SKU基础上加后缀）
+            const newSku = `${product.sku}_copy_${Date.now().toString().slice(-4)}`;
+            const today = new Date();
+            const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+            
+            const copiedProduct = {
+                ...product,
+                id: Date.now().toString(),
+                sku: newSku,
+                name: product.name,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                monthlySales: 0,
+                salesMonth: currentMonth
+            };
+            
+            products.push(copiedProduct);
+            await saveProductToDB(copiedProduct);
+            
+            if (currentSortType) {
+                sortProducts(currentSortType); // 保持当前排序
+            } else {
+                renderProducts();
+            }
+            
+            // 跳转到复制的产品信息修改页面，并聚焦到SKU选项
+            editProduct(copiedProduct.id, true);
+        }
+        
+        // 删除产品
+        async function deleteProduct(id) {
+            // 确保找到产品
+            const productIndex = products.findIndex(p => p.id === id);
+            if (productIndex === -1) {
+                alert('未找到该产品');
+                return;
+            }
+            
+            if (confirm('确定要删除这个产品吗？')) {
+                // 从数组中移除产品
+                products.splice(productIndex, 1);
+                // 如果删除的产品在选中列表中，也一并移除
+                selectedProductIds.delete(id);
+                await deleteProductFromDB(id);
+                
+                if (currentSortType) {
+                    sortProducts(currentSortType); // 保持当前排序
+                } else {
+                    renderProducts();
+                }
+            }
+        }
+        
+        // 关闭模态框
+        function closeModal() {
+            productModal.classList.add('hidden');
+        }
+        
+        // 处理图片上传
+        function handleImageUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                productImagePreview.src = event.target.result;
+                productImagePreview.classList.remove('hidden');
+                productImageData.value = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        // 处理图片搜索选择
+        function handleImageSearchSelection(e) {
+            const file = e.target.files[0];
+            if (file) {
+                imageFileName.textContent = file.name;
+                
+                // 实际应用中这里应该有图片识别逻辑
+                alert('图片搜索功能：在实际应用中，这里会使用图片识别技术查找相似产品');
+            } else {
+                imageFileName.textContent = '未选择图片';
+            }
+        }
+        
+        // 搜索产品
+        function handleSearch() {
+            const query = searchInput.value.toLowerCase().trim();
+            if (!query) {
+                if (currentSortType) {
+                    sortProducts(currentSortType); // 保持当前排序
+                } else {
+                    renderProducts();
+                }
+                return;
+            }
+            
+            const filtered = products.filter(product => 
+                product.name.toLowerCase().includes(query) ||
+                product.spu.toLowerCase().includes(query) ||
+                product.skc.toLowerCase().includes(query) ||
+                product.sku.toLowerCase().includes(query)
+            );
+            
+            renderProducts(filtered);
+        }
+        
+        // 特定类型搜索
+        function handleSpecificSearch() {
+            const type = searchType.value;
+            const query = specificSearchInput.value.toLowerCase().trim();
+            
+            if (!query) {
+                if (currentSortType) {
+                    sortProducts(currentSortType); // 保持当前排序
+                } else {
+                    renderProducts();
+                }
+                return;
+            }
+            
+            let filtered;
+            
+            switch (type) {
+                case 'name':
+                    filtered = products.filter(p => p.name.toLowerCase().includes(query));
+                    break;
+                case 'spu':
+                    filtered = products.filter(p => p.spu.toLowerCase().includes(query));
+                    break;
+                case 'skc':
+                    filtered = products.filter(p => p.skc.toLowerCase().includes(query));
+                    break;
+                case 'sku':
+                    filtered = products.filter(p => p.sku.toLowerCase().includes(query));
+                    break;
+                default:
+                    filtered = products.filter(p => 
+                        p.name.toLowerCase().includes(query) ||
+                        p.spu.toLowerCase().includes(query) ||
+                        p.skc.toLowerCase().includes(query) ||
+                        p.sku.toLowerCase().includes(query)
+                    );
+            }
+            
+            renderProducts(filtered);
+        }
+        
+        // 导出所有产品为Excel
+        function exportAllProducts() {
+            if (products.length === 0) {
+                alert('没有产品数据可导出');
+                return;
+            }
+            
+            // 准备导出数据
+            const exportData = products.map(product => ({
+                'SPU': product.spu,
+                'SKC': product.skc,
+                'SKU': product.sku,
+                '产品名称': product.name,
+                '进货价格': product.purchasePrice,
+                'SKU申报价': product.declaredPrice,
+                '广告出价比例': product.adBidRatio,
+                '广告扣费': product.adCost,
+                '推广利润': product.promotionProfit,
+                '购买链接': product.url || '',
+                '当月销量': product.monthlySales || 0
+            }));
+            
+            // 创建工作簿和工作表
+            const worksheet = XLSX.utils.json_to_sheet(exportData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, '产品列表');
+            
+            // 导出文件
+            XLSX.writeFile(workbook, `产品列表_${new Date().toLocaleDateString()}.xlsx`);
+        }
+        
+        // 导入产品
+        async function importProducts(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const importedData = XLSX.utils.sheet_to_json(worksheet);
+                    const today = new Date();
+                    const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+                    
+                    // 处理导入的数据
+                    for (const item of importedData) {
+                        // 检查必要字段
+                        if (item.SPU && item.SKC && item.SKU && item.产品名称 && item.进货价格 && item.SKU申报价) {
+                            // 计算广告扣费：申报价 ÷ 广告出价比例（不再使用百分比）
+                            const adBidRatio = item.广告出价比例 || 100;
+                            const adCost = (parseFloat(item.SKU申报价) / parseFloat(adBidRatio)).toFixed(2);
+                            
+                            // 计算推广利润：申报价 - 广告扣费 - 成本价
+                            const promotionProfit = (parseFloat(item.SKU申报价) - parseFloat(adCost) - parseFloat(item.进货价格)).toFixed(2);
+                            
+                            // 检查是否已存在相同SKU的产品
+                            const existingIndex = products.findIndex(p => p.sku === item.SKU);
+                            
+                            if (existingIndex === -1) {
+                                // 新增产品
+                                const newProduct = {
+                                    id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+                                    spu: item.SPU.toString().trim(),
+                                    skc: item.SKC.toString().trim(),
+                                    sku: item.SKU.toString().trim(),
+                                    name: item.产品名称.toString().trim(),
+                                    purchasePrice: item.进货价格.toString().trim(),
+                                    declaredPrice: item.SKU申报价.toString().trim(),
+                                    adBidRatio: adBidRatio.toString().trim(),
+                                    adCost: item.广告扣费 || adCost,
+                                    promotionProfit: item.推广利润 || promotionProfit,
+                                    url: item.购买链接 ? item.购买链接.toString().trim() : '',
+                                    image: '',
+                                    createdAt: new Date().toISOString(),
+                                    updatedAt: new Date().toISOString(),
+                                    monthlySales: item.当月销量 || 0,
+                                    salesMonth: currentMonth
+                                };
+                                products.push(newProduct);
+                                await saveProductToDB(newProduct);
+                            } else {
+                                // 更新现有产品
+                                products[existingIndex] = {
+                                    ...products[existingIndex],
+                                    spu: item.SPU.toString().trim(),
+                                    skc: item.SKC.toString().trim(),
+                                    name: item.产品名称.toString().trim(),
+                                    purchasePrice: item.进货价格.toString().trim(),
+                                    declaredPrice: item.SKU申报价.toString().trim(),
+                                    adBidRatio: adBidRatio.toString().trim(),
+                                    adCost: item.广告扣费 || adCost,
+                                    promotionProfit: item.推广利润 || promotionProfit,
+                                    url: item.购买链接 ? item.购买链接.toString().trim() : '',
+                                    updatedAt: new Date().toISOString()
+                                };
+                                await saveProductToDB(products[existingIndex]);
+                            }
+                        }
+                    }
+                    
+                    if (currentSortType) {
+                        sortProducts(currentSortType); // 保持当前排序
+                    } else {
+                        renderProducts();
+                    }
+                    alert(`成功导入 ${importedData.length} 条产品数据`);
+                    
+                    // 重置文件输入
+                    productFileInput.value = '';
+                } catch (error) {
+                    console.error('导入失败', error);
+                    alert('导入失败，请确保文件格式正确');
+                }
+            };
+            
+            reader.readAsArrayBuffer(file);
+        }
+        
+        // 批量保存产品
+        async function saveProducts(productsList) {
+            try {
+                for (const product of productsList) {
+                    await saveProductToDB(product);
+                }
+                return true;
+            } catch (error) {
+                console.error('批量保存产品失败：', error);
+                return false;
+            }
+        }
+        
+        // 处理利润核算文件上传
+        function handleProfitFileUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            profitFileName.textContent = file.name;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    
+                    // 解析表格数据
+                    let rawData = XLSX.utils.sheet_to_json(worksheet);
+                    
+                    // 处理数据 - 匹配SKU并计算
+                    profitData = processProfitData(rawData);
+                    
+                    // 显示结果
+                    displayProfitResults();
+                    
+                    // 启用导出按钮
+                    exportProfitBtn.disabled = false;
+                    exportProfitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    
+                } catch (error) {
+                    console.error('利润核算文件处理失败', error);
+                    alert('文件处理失败，请确保文件格式正确');
+                }
+            };
+            
+            reader.readAsArrayBuffer(file);
+        }
+        
+        // 处理利润核算数据
+        function processProfitData(rawData) {
+            // 查找表格中可能的SKU列标题
+            const skuColumnNames = ['SKU', 'SKU ID', '商品编码', '产品编码'];
+            let skuColumnName = null;
+            
+            if (rawData.length > 0) {
+                const firstRow = rawData[0];
+                for (const name of skuColumnNames) {
+                    if (firstRow.hasOwnProperty(name)) {
+                        skuColumnName = name;
+                        break;
+                    }
+                }
+                
+                // 如果没找到标准SKU列名，尝试模糊匹配
+                if (!skuColumnName) {
+                    for (const key of Object.keys(firstRow)) {
+                        if (key.toLowerCase().includes('sku') || key.toLowerCase().includes('编码')) {
+                            skuColumnName = key;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // 查找销售数量列
+            const quantityColumnNames = ['销售数量', '数量', '销量', '件数'];
+            let quantityColumnName = null;
+            
+            if (rawData.length > 0 && !quantityColumnName) {
+                const firstRow = rawData[0];
+                for (const name of quantityColumnNames) {
+                    if (firstRow.hasOwnProperty(name)) {
+                        quantityColumnName = name;
+                        break;
+                    }
+                }
+                
+                // 模糊匹配
+                if (!quantityColumnName) {
+                    for (const key of Object.keys(firstRow)) {
+                        if (key.toLowerCase().includes('数量') || key.toLowerCase().includes('销量') || key.toLowerCase().includes('件数')) {
+                            quantityColumnName = key;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // 查找收入金额列
+            const revenueColumnNames = ['收入金额', '销售额', '收入', '金额'];
+            let revenueColumnName = null;
+            
+            if (rawData.length > 0 && !revenueColumnName) {
+                const firstRow = rawData[0];
+                for (const name of revenueColumnNames) {
+                    if (firstRow.hasOwnProperty(name)) {
+                        revenueColumnName = name;
+                        break;
+                    }
+                }
+                
+                // 模糊匹配
+                if (!revenueColumnName) {
+                    for (const key of Object.keys(firstRow)) {
+                        if (key.toLowerCase().includes('收入') || key.toLowerCase().includes('金额') || key.toLowerCase().includes('销售')) {
+                            revenueColumnName = key;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // 如果找不到必要的列，提示用户
+            if (!skuColumnName) {
+                alert('未找到SKU相关列，请确保表格包含SKU信息');
+                return null;
+            }
+            
+            if (!quantityColumnName) {
+                alert('未找到销售数量相关列，请确保表格包含销售数量信息');
+                return null;
+            }
+            
+            if (!revenueColumnName) {
+                alert('未找到收入金额相关列，请确保表格包含收入金额信息');
+                return null;
+            }
+            
+            // 处理每条数据
+            let totalCost = 0;
+            let totalProfit = 0;
+            let totalRevenue = 0;
+            
+            const processedData = rawData.map(item => {
+                // 获取SKU值
+                let skuValue = item[skuColumnName] ? item[skuColumnName].toString().trim() : '';
+                
+                // 查找匹配的产品
+                let product = products.find(p => p.sku === skuValue);
+                
+                // 如果没有找到，尝试模糊匹配
+                if (!product && skuValue) {
+                    product = products.find(p => 
+                        p.sku.toString().includes(skuValue) || 
+                        skuValue.includes(p.sku.toString())
+                    );
+                }
+                
+                // 获取销售数量和收入金额
+                const quantity = parseFloat(item[quantityColumnName]) || 0;
+                const revenue = parseFloat(item[revenueColumnName]) || 0;
+                
+                // 计算成本和利润
+                const purchasePrice = product ? parseFloat(product.purchasePrice) : 0;
+                const cost = (purchasePrice * quantity).toFixed(2);
+                const profit = (revenue - parseFloat(cost)).toFixed(2);
+                
+                // 累加总计
+                totalCost += parseFloat(cost);
+                totalProfit += parseFloat(profit);
+                totalRevenue += revenue;
+                
+                return {
+                    ...item,
+                    '匹配的SKU': product ? product.sku : '未匹配',
+                    '进货价': product ? product.purchasePrice : 'N/A',
+                    '成本': cost,
+                    '利润': profit
+                };
+            });
+            
+            return {
+                data: processedData,
+                columns: Object.keys(processedData[0] || {}),
+                totalCost: totalCost.toFixed(2),
+                totalProfit: totalProfit.toFixed(2),
+                totalRevenue: totalRevenue.toFixed(2),
+                skuColumnName,
+                quantityColumnName,
+                revenueColumnName
+            };
+        }
+        
+        // 显示利润核算结果
+        function displayProfitResults() {
+            if (!profitData || !profitData.data || profitData.data.length === 0) {
+                profitResults.classList.add('hidden');
+                profitEmptyState.classList.remove('hidden');
+                return;
+            }
+            
+            profitEmptyState.classList.add('hidden');
+            profitResults.classList.remove('hidden');
+            
+            // 清空表格
+            profitTableHeader.innerHTML = '';
+            profitTableBody.innerHTML = '';
+            profitTableFooter.innerHTML = '';
+            
+            // 创建表头
+            profitData.columns.forEach(column => {
+                const th = document.createElement('th');
+                th.textContent = column;
+                profitTableHeader.appendChild(th);
+            });
+            
+            // 创建表体
+            profitData.data.forEach(item => {
+                const tr = document.createElement('tr');
+                
+                // 为未匹配的SKU添加特殊样式
+                if (item['匹配的SKU'] === '未匹配') {
+                    tr.classList.add('no-match');
+                }
+                
+                profitData.columns.forEach(column => {
+                    const td = document.createElement('td');
+                    td.textContent = item[column];
+                    tr.appendChild(td);
+                });
+                
+                profitTableBody.appendChild(tr);
+            });
+            
+            // 创建表脚（总计行）
+            const totalRow1 = document.createElement('tr');
+            totalRow1.classList.add('summary-row');
+            
+            const totalLabelCell1 = document.createElement('td');
+            totalLabelCell1.colSpan = profitData.columns.length - 3;
+            totalLabelCell1.textContent = '总成本：';
+            totalRow1.appendChild(totalLabelCell1);
+            
+            const totalCostCell = document.createElement('td');
+            totalCostCell.colSpan = 1;
+            totalCostCell.textContent = profitData.totalCost;
+            totalRow1.appendChild(totalCostCell);
+            
+            const emptyCell = document.createElement('td');
+            emptyCell.colSpan = 1;
+            totalRow1.appendChild(emptyCell);
+            
+            profitTableFooter.appendChild(totalRow1);
+            
+            const totalRow2 = document.createElement('tr');
+            totalRow2.classList.add('summary-row');
+            
+            const totalLabelCell2 = document.createElement('td');
+            totalLabelCell2.colSpan = profitData.columns.length - 3;
+            totalLabelCell2.textContent = '总利润：';
+            totalRow2.appendChild(totalLabelCell2);
+            
+            const totalProfitCell = document.createElement('td');
+            totalProfitCell.colSpan = 1;
+            totalProfitCell.textContent = profitData.totalProfit;
+            totalRow2.appendChild(totalProfitCell);
+            
+            const emptyCell2 = document.createElement('td');
+            emptyCell2.colSpan = 1;
+            totalRow2.appendChild(emptyCell2);
+            
+            profitTableFooter.appendChild(totalRow2);
+            
+            const totalRow3 = document.createElement('tr');
+            totalRow3.classList.add('summary-row');
+            
+            const totalLabelCell3 = document.createElement('td');
+            totalLabelCell3.colSpan = profitData.columns.length - 3;
+            totalLabelCell3.textContent = '回款收入：';
+            totalRow3.appendChild(totalLabelCell3);
+            
+            const totalRevenueCell = document.createElement('td');
+            totalRevenueCell.colSpan = 1;
+            totalRevenueCell.textContent = profitData.totalRevenue;
+            totalRow3.appendChild(totalRevenueCell);
+            
+            const emptyCell3 = document.createElement('td');
+            emptyCell3.colSpan = 1;
+            totalRow3.appendChild(emptyCell3);
+            
+            profitTableFooter.appendChild(totalRow3);
+        }
+        
+        // 导出利润核算数据
+        function exportProfitData() {
+            if (!profitData || !profitData.data || profitData.data.length === 0) {
+                alert('没有可导出的数据');
+                return;
+            }
+            
+            // 准备导出数据
+            const exportData = [...profitData.data];
+            
+            // 添加总计行
+            exportData.push({}); // 空行分隔
+            
+            const totalRow = {};
+            profitData.columns.forEach(column => {
+                if (column === profitData.columns[0]) {
+                    totalRow[column] = '总成本';
+                } else if (column === '成本') {
+                    totalRow[column] = profitData.totalCost;
+                } else {
+                    totalRow[column] = '';
+                }
+            });
+            exportData.push(totalRow);
+            
+            const totalRow2 = {};
+            profitData.columns.forEach(column => {
+                if (column === profitData.columns[0]) {
+                    totalRow2[column] = '总利润';
+                } else if (column === '利润') {
+                    totalRow2[column] = profitData.totalProfit;
+                } else {
+                    totalRow2[column] = '';
+                }
+            });
+            exportData.push(totalRow2);
+            
+            const totalRow3 = {};
+            profitData.columns.forEach(column => {
+                if (column === profitData.columns[0]) {
+                    totalRow3[column] = '回款收入';
+                } else if (column === profitData.revenueColumnName) {
+                    totalRow3[column] = profitData.totalRevenue;
+                } else {
+                    totalRow3[column] = '';
+                }
+            });
+            exportData.push(totalRow3);
+            
+            // 创建工作簿和工作表
+            const worksheet = XLSX.utils.json_to_sheet(exportData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, '利润核算结果');
+            
+            // 导出文件
+            XLSX.writeFile(workbook, `利润核算结果_${new Date().toLocaleDateString()}.xlsx`);
+        }
+        
+        // 处理推广核算文件上传
+        function handlePromotionFileUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            promotionFileName.textContent = file.name;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    
+                    // 解析表格数据
+                    let rawData = XLSX.utils.sheet_to_json(worksheet);
+                    
+                    // 处理数据 - 匹配SPU并计算
+                    promotionData = processPromotionData(rawData);
+                    
+                    // 显示结果
+                    displayPromotionResults();
+                    
+                    // 启用导出按钮
+                    exportPromotionBtn.disabled = false;
+                    exportPromotionBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    
+                } catch (error) {
+                    console.error('推广核算文件处理失败', error);
+                    alert('文件处理失败，请确保文件格式正确');
+                }
+            };
+            
+            reader.readAsArrayBuffer(file);
+        }
+        
+        // 处理推广核算数据
+        function processPromotionData(rawData) {
+            // 查找表格中可能的SPU列标题
+            const spuColumnNames = ['SPU', 'SPU ID', '产品组', '商品组'];
+            let spuColumnName = null;
+            
+            if (rawData.length > 0) {
+                const firstRow = rawData[0];
+                for (const name of spuColumnNames) {
+                    if (firstRow.hasOwnProperty(name)) {
+                        spuColumnName = name;
+                        break;
+                    }
+                }
+                
+                // 如果没找到标准SPU列名，尝试模糊匹配
+                if (!spuColumnName) {
+                    for (const key of Object.keys(firstRow)) {
+                        if (key.toLowerCase().includes('spu') || key.toLowerCase().includes('产品组') || key.toLowerCase().includes('商品组')) {
+                            spuColumnName = key;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // 查找申报价销售额列
+            const declaredRevenueColumnNames = ['申报价销售额', '申报价销售', '申报销售额'];
+            let declaredRevenueColumnName = null;
+            
+            if (rawData.length > 0 && !declaredRevenueColumnName) {
+                const firstRow = rawData[0];
+                for (const name of declaredRevenueColumnNames) {
+                    if (firstRow.hasOwnProperty(name)) {
+                        declaredRevenueColumnName = name;
+                        break;
+                    }
+                }
+                
+                // 模糊匹配
+                if (!declaredRevenueColumnName) {
+                    for (const key of Object.keys(firstRow)) {
+                        if (key.toLowerCase().includes('申报价') && key.toLowerCase().includes('销售')) {
+                            declaredRevenueColumnName = key;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // 查找订单量列
+            const orderCountColumnNames = ['订单量', '订单数', '销量', '单数'];
+            let orderCountColumnName = null;
+            
+            if (rawData.length > 0 && !orderCountColumnName) {
+                const firstRow = rawData[0];
+                for (const name of orderCountColumnNames) {
+                    if (firstRow.hasOwnProperty(name)) {
+                        orderCountColumnName = name;
+                        break;
+                    }
+                }
+                
+                // 模糊匹配
+                if (!orderCountColumnName) {
+                    for (const key of Object.keys(firstRow)) {
+                        if (key.toLowerCase().includes('订单') || key.toLowerCase().includes('销量') || key.toLowerCase().includes('单数')) {
+                            orderCountColumnName = key;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // 查找每笔成交花费列
+            const costPerDealColumnNames = ['每笔成交花费', '单笔花费', '成交花费'];
+            let costPerDealColumnName = null;
+            
+            if (rawData.length > 0 && !costPerDealColumnName) {
+                const firstRow = rawData[0];
+                for (const name of costPerDealColumnNames) {
+                    if (firstRow.hasOwnProperty(name)) {
+                        costPerDealColumnName = name;
+                        break;
+                    }
+                }
+                
+                // 模糊匹配
+                if (!costPerDealColumnName) {
+                    for (const key of Object.keys(firstRow)) {
+                        if (key.toLowerCase().includes('成交') && key.toLowerCase().includes('花费')) {
+                            costPerDealColumnName = key;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // 如果找不到必要的列，提示用户
+            if (!spuColumnName) {
+                alert('未找到SPU相关列，请确保表格包含SPU信息');
+                return null;
+            }
+            
+            if (!declaredRevenueColumnName) {
+                alert('未找到申报价销售额相关列，请确保表格包含申报价销售额信息');
+                return null;
+            }
+            
+            if (!orderCountColumnName) {
+                alert('未找到订单量相关列，请确保表格包含订单量信息');
+                return null;
+            }
+            
+            if (!costPerDealColumnName) {
+                alert('未找到每笔成交花费相关列，请确保表格包含每笔成交花费信息');
+                return null;
+            }
+            
+            // 处理每条数据
+            const processedData = rawData.map(item => {
+                // 获取SPU值
+                let spuValue = item[spuColumnName] ? item[spuColumnName].toString().trim() : '';
+                
+                // 查找匹配的产品
+                const matchedProducts = spuValue ? products.filter(p => p.spu === spuValue) : [];
+                
+                // 找到同SPU下最低的进货价
+                let minPurchasePrice = 0;
+                if (matchedProducts.length > 0) {
+                    minPurchasePrice = Math.min(...matchedProducts.map(p => parseFloat(p.purchasePrice)));
+                }
+                
+                // 获取其他必要数据
+                const declaredRevenue = parseFloat(item[declaredRevenueColumnName]) || 0;
+                const orderCount = parseFloat(item[orderCountColumnName]) || 0;
+                const costPerDeal = parseFloat(item[costPerDealColumnName]) || 0;
+                
+                // 计算各项指标
+                const salesAmount = (declaredRevenue * 1).toFixed(2); // 销售额 = 申报价销售额 * 1
+                const cost = (minPurchasePrice * orderCount).toFixed(2); // 成本 = 最低进货价 * 订单量
+                const totalCost = (costPerDeal * orderCount).toFixed(2); // 总花费 = 每笔成交花费 * 订单量
+                const profit = (parseFloat(salesAmount) - parseFloat(cost) - parseFloat(totalCost)).toFixed(2); // 利润 = 销售额 - 成本 - 总花费
+                
+                return {
+                    ...item,
+                    '匹配的SPU数量': matchedProducts.length,
+                    '最低进货价': minPurchasePrice.toFixed(2),
+                    '销售额': salesAmount,
+                    '成本': cost,
+                    '总花费': totalCost,
+                    '利润': profit
+                };
+            });
+            
+            return {
+                data: processedData,
+                columns: Object.keys(processedData[0] || {}),
+                spuColumnName,
+                declaredRevenueColumnName,
+                orderCountColumnName,
+                costPerDealColumnName
+            };
+        }
+        
+        // 显示推广核算结果
+        function displayPromotionResults() {
+            if (!promotionData || !promotionData.data || promotionData.data.length === 0) {
+                promotionResults.classList.add('hidden');
+                promotionEmptyState.classList.remove('hidden');
+                return;
+            }
+            
+            promotionEmptyState.classList.add('hidden');
+            promotionResults.classList.remove('hidden');
+            
+            // 清空表格
+            promotionTableHeader.innerHTML = '';
+            promotionTableBody.innerHTML = '';
+            
+            // 创建表头
+            promotionData.columns.forEach(column => {
+                const th = document.createElement('th');
+                th.textContent = column;
+                promotionTableHeader.appendChild(th);
+            });
+            
+            // 创建表体
+            promotionData.data.forEach(item => {
+                const tr = document.createElement('tr');
+                
+                // 为未匹配的SPU添加特殊样式
+                if (item['匹配的SPU数量'] == 0) {
+                    tr.classList.add('no-match');
+                }
+                
+                promotionData.columns.forEach(column => {
+                    const td = document.createElement('td');
+                    td.textContent = item[column];
+                    tr.appendChild(td);
+                });
+                
+                promotionTableBody.appendChild(tr);
+            });
+        }
+        
+        // 导出推广核算数据
+        function exportPromotionData() {
+            if (!promotionData || !promotionData.data || promotionData.data.length === 0) {
+                alert('没有可导出的数据');
+                return;
+            }
+            
+            // 创建工作簿和工作表
+            const worksheet = XLSX.utils.json_to_sheet(promotionData.data);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, '推广核算结果');
+            
+            // 导出文件
+            XLSX.writeFile(workbook, `推广核算结果_${new Date().toLocaleDateString()}.xlsx`);
+        }
+        
+        // 处理推广总核算文件选择
+        function handleTotalPromotionFilesSelect(e) {
+            const files = e.target.files;
+            if (!files || files.length === 0) return;
+            
+            // 限制最多100个文件
+            const maxFiles = 100;
+            if (files.length > maxFiles) {
+                alert(`最多只能选择${maxFiles}个文件`);
+                // 清空选择
+                totalPromotionFileInput.value = '';
+                return;
+            }
+            
+            // 保存选中的文件
+            totalPromotionFiles = Array.from(files);
+            
+            // 更新UI
+            totalPromotionFileCount.textContent = `已选择 ${totalPromotionFiles.length} 个文件`;
+            
+            // 显示文件列表
+            selectedFilesList.classList.remove('hidden');
+            totalPromotionFilesList.innerHTML = '';
+            
+            totalPromotionFiles.forEach(file => {
+                const li = document.createElement('li');
+                li.textContent = file.name;
+                totalPromotionFilesList.appendChild(li);
+            });
+            
+            // 启用按钮
+            clearTotalPromotionFilesBtn.disabled = false;
+            clearTotalPromotionFilesBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            
+            processTotalPromotionBtn.disabled = false;
+            processTotalPromotionBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+        
+        // 清除已选择的推广总核算文件
+        function clearTotalPromotionFiles() {
+            totalPromotionFiles = [];
+            totalPromotionFileInput.value = '';
+            totalPromotionFileCount.textContent = '已选择 0 个文件';
+            selectedFilesList.classList.add('hidden');
+            totalPromotionFilesList.innerHTML = '';
+            
+            // 禁用按钮
+            clearTotalPromotionFilesBtn.disabled = true;
+            clearTotalPromotionFilesBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            
+            processTotalPromotionBtn.disabled = true;
+            processTotalPromotionBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            
+            // 隐藏结果
+            totalPromotionResults.classList.add('hidden');
+            totalPromotionEmptyState.classList.remove('hidden');
+        }
+        
+        // 处理并计算推广总核算文件
+        async function processTotalPromotionFiles() {
+            if (totalPromotionFiles.length === 0) return;
+            
+            try {
+                // 显示加载状态
+                processTotalPromotionBtn.innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i> 处理中...';
+                processTotalPromotionBtn.disabled = true;
+                
+                let allData = [];
+                let columns = new Set();
+                
+                // 处理每个文件
+                for (const file of totalPromotionFiles) {
+                    const data = await new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            try {
+                                const data = new Uint8Array(e.target.result);
+                                const workbook = XLSX.read(data, { type: 'array' });
+                                const firstSheetName = workbook.SheetNames[0];
+                                const worksheet = workbook.Sheets[firstSheetName];
+                                const fileData = XLSX.utils.sheet_to_json(worksheet);
+                                
+                                // 记录所有列名
+                                if (fileData.length > 0) {
+                                    Object.keys(fileData[0]).forEach(col => columns.add(col));
+                                }
+                                
+                                resolve(fileData);
+                            } catch (error) {
+                                console.error(`处理文件 ${file.name} 失败`, error);
+                                resolve([]);
+                            }
+                        };
+                        reader.readAsArrayBuffer(file);
+                    });
+                    
+                    // 添加来源文件名
+                    const fileDataWithSource = data.map(item => ({
+                        ...item,
+                        '来源文件': file.name
+                    }));
+                    
+                    allData = [...allData, ...fileDataWithSource];
+                }
+                
+                // 添加新列名
+                columns.add('来源文件');
+                columns.add('总申报价');
+                columns.add('总成本');
+                columns.add('总推广');
+                columns.add('总利润');
+                
+                // 查找必要的列
+                const declaredRevenueColumnNames = ['申报价销售额', '申报价销售', '申报销售额'];
+                let declaredRevenueColumnName = null;
+                
+                if (allData.length > 0) {
+                    const firstRow = allData[0];
+                    for (const name of declaredRevenueColumnNames) {
+                        if (firstRow.hasOwnProperty(name)) {
+                            declaredRevenueColumnName = name;
+                            break;
+                        }
+                    }
+                    
+                    // 模糊匹配
+                    if (!declaredRevenueColumnName) {
+                        for (const key of Object.keys(firstRow)) {
+                            if (key.toLowerCase().includes('申报价') && key.toLowerCase().includes('销售')) {
+                                declaredRevenueColumnName = key;
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+                // 查找成本列
+                const costColumnNames = ['成本', '总成本'];
+                let costColumnName = null;
+                
+                if (allData.length > 0 && !costColumnName) {
+                    const firstRow = allData[0];
+                    for (const name of costColumnNames) {
+                        if (firstRow.hasOwnProperty(name)) {
+                            costColumnName = name;
+                            break;
+                        }
+                    }
+                }
+                
+                // 查找总花费/推广列
+                const promotionColumnNames = ['总花费', '推广花费', '推广成本'];
+                let promotionColumnName = null;
+                
+                if (allData.length > 0 && !promotionColumnName) {
+                    const firstRow = allData[0];
+                    for (const name of promotionColumnNames) {
+                        if (firstRow.hasOwnProperty(name)) {
+                            promotionColumnName = name;
+                            break;
+                        }
+                    }
+                    
+                    // 模糊匹配
+                    if (!promotionColumnName) {
+                        for (const key of Object.keys(firstRow)) {
+                            if (key.toLowerCase().includes('花费') || key.toLowerCase().includes('推广')) {
+                                promotionColumnName = key;
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+                // 查找利润列
+                const profitColumnNames = ['利润', '总利润'];
+                let profitColumnName = null;
+                
+                if (allData.length > 0 && !profitColumnName) {
+                    const firstRow = allData[0];
+                    for (const name of profitColumnNames) {
+                        if (firstRow.hasOwnProperty(name)) {
+                            profitColumnName = name;
+                            break;
+                        }
+                    }
+                }
+                
+                // 计算总申报价、总成本、总推广和总利润
+                let totalDeclaredPrice = 0;
+                let totalCost = 0;
+                let totalPromotion = 0;
+                let totalProfit = 0;
+                
+                const processedData = allData.map(item => {
+                    // 计算单行的各项总和
+                    const declaredPrice = declaredRevenueColumnName ? parseFloat(item[declaredRevenueColumnName]) || 0 : 0;
+                    const cost = costColumnName ? parseFloat(item[costColumnName]) || 0 : 0;
+                    const promotion = promotionColumnName ? parseFloat(item[promotionColumnName]) || 0 : 0;
+                    const profit = profitColumnName ? parseFloat(item[profitColumnName]) || 0 : 0;
+                    
+                    // 累加总计
+                    totalDeclaredPrice += declaredPrice;
+                    totalCost += cost;
+                    totalPromotion += promotion;
+                    totalProfit += profit;
+                    
+                    return {
+                        ...item,
+                        '总申报价': declaredPrice.toFixed(2),
+                        '总成本': cost.toFixed(2),
+                        '总推广': promotion.toFixed(2),
+                        '总利润': profit.toFixed(2)
+                    };
+                });
+                
+                // 保存处理后的数据
+                totalPromotionData = {
+                    data: processedData,
+                    columns: Array.from(columns),
+                    totalDeclaredPrice: totalDeclaredPrice.toFixed(2),
+                    totalCost: totalCost.toFixed(2),
+                    totalPromotion: totalPromotion.toFixed(2),
+                    totalProfit: totalProfit.toFixed(2),
+                    declaredRevenueColumnName,
+                    costColumnName,
+                    promotionColumnName,
+                    profitColumnName
+                };
+                
+                // 显示结果
+                displayTotalPromotionResults();
+                
+            } catch (error) {
+                console.error('处理推广总核算文件失败', error);
+                alert('处理文件失败，请确保所有文件格式正确');
+            } finally {
+                // 恢复按钮状态
+                processTotalPromotionBtn.innerHTML = '<i class="fa fa-cog mr-1"></i> 处理并计算';
+                processTotalPromotionBtn.disabled = false;
+            }
+        }
+        
+        // 显示推广总核算结果
+        function displayTotalPromotionResults() {
+            if (!totalPromotionData || !totalPromotionData.data || totalPromotionData.data.length === 0) {
+                totalPromotionResults.classList.add('hidden');
+                totalPromotionEmptyState.classList.remove('hidden');
+                return;
+            }
+            
+            totalPromotionEmptyState.classList.add('hidden');
+            totalPromotionResults.classList.remove('hidden');
+            
+            // 清空表格
+            totalPromotionTableHeader.innerHTML = '';
+            totalPromotionTableBody.innerHTML = '';
+            totalPromotionTableFooter.innerHTML = '';
+            
+            // 创建表头
+            totalPromotionData.columns.forEach(column => {
+                const th = document.createElement('th');
+                th.textContent = column;
+                totalPromotionTableHeader.appendChild(th);
+            });
+            
+            // 创建表体
+            totalPromotionData.data.forEach(item => {
+                const tr = document.createElement('tr');
+                
+                totalPromotionData.columns.forEach(column => {
+                    const td = document.createElement('td');
+                    td.textContent = item[column] !== undefined ? item[column] : '';
+                    tr.appendChild(td);
+                });
+                
+                totalPromotionTableBody.appendChild(tr);
+            });
+            
+            // 创建表脚（总计行）
+            const totalRow = document.createElement('tr');
+            totalRow.classList.add('summary-row');
+            
+            const totalLabelCell = document.createElement('td');
+            totalLabelCell.colSpan = totalPromotionData.columns.length - 4;
+            totalLabelCell.textContent = '总计：';
+            totalRow.appendChild(totalLabelCell);
+            
+            const totalDeclaredPriceCell = document.createElement('td');
+            totalDeclaredPriceCell.textContent = totalPromotionData.totalDeclaredPrice;
+            totalRow.appendChild(totalDeclaredPriceCell);
+            
+            const totalCostCell = document.createElement('td');
+            totalCostCell.textContent = totalPromotionData.totalCost;
+            totalRow.appendChild(totalCostCell);
+            
+            const totalPromotionCell = document.createElement('td');
+            totalPromotionCell.textContent = totalPromotionData.totalPromotion;
+            totalRow.appendChild(totalPromotionCell);
+            
+            const totalProfitCell = document.createElement('td');
+            totalProfitCell.textContent = totalPromotionData.totalProfit;
+            totalRow.appendChild(totalProfitCell);
+            
+            totalPromotionTableFooter.appendChild(totalRow);
+        }
+        
+        // 导出推广总核算数据
+        function exportTotalPromotionData() {
+            if (!totalPromotionData || !totalPromotionData.data || totalPromotionData.data.length === 0) {
+                alert('没有可导出的数据');
+                return;
+            }
+            
+            // 准备导出数据
+            const exportData = [...totalPromotionData.data];
+            
+            // 添加总计行
+            exportData.push({}); // 空行分隔
+            
+            const totalRow = {};
+            totalPromotionData.columns.forEach(column => {
+                if (column === totalPromotionData.columns[0]) {
+                    totalRow[column] = '总计';
+                } else if (column === '总申报价') {
+                    totalRow[column] = totalPromotionData.totalDeclaredPrice;
+                } else if (column === '总成本') {
+                    totalRow[column] = totalPromotionData.totalCost;
+                } else if (column === '总推广') {
+                    totalRow[column] = totalPromotionData.totalPromotion;
+                } else if (column === '总利润') {
+                    totalRow[column] = totalPromotionData.totalProfit;
+                } else {
+                    totalRow[column] = '';
+                }
+            });
+            exportData.push(totalRow);
+            
+            // 创建工作簿和工作表
+            const worksheet = XLSX.utils.json_to_sheet(exportData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, '推广总核算结果');
+            
+            // 导出文件
+            XLSX.writeFile(workbook, `推广总核算结果_${new Date().toLocaleDateString()}.xlsx`);
+        }
+    </script>
+</body>
+</html>
